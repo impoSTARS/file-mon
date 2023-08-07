@@ -1,0 +1,3 @@
+files:
+- /home/umlal/file-mon/tests/file.txt
+- /home/umlal/file-mon/tests/test_file_change.py
