@@ -18,6 +18,11 @@ filemon
 filemon --add /path/to/file
 filemon --config /path/to/pwd/config.yaml
 filemon --validate
+filemon --remove /path/to/file
+sss
+as
+dossa
+some more
 ```
 
 Add a file:
