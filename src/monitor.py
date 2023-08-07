@@ -8,6 +8,10 @@ import os
 import traceback
 import pwd
 import grp
+from shutil import copy2
+from datetime import datetime
+import tempfile
+from difflib import Differ
 
 try:
     from watchdog.events import FileSystemEventHandler
@@ -17,6 +21,7 @@ except ImportError:
 
 DEFAULT_CONF_NAME = "config.yaml"
 PATH_DEF_CONF = os.path.abspath(os.path.relpath(DEFAULT_CONF_NAME, start=os.getcwd()))
+DEFAULT_TEMP_STORE = True
 
 
 class FileChangeHandler(FileSystemEventHandler):
@@ -24,12 +29,83 @@ class FileChangeHandler(FileSystemEventHandler):
     Class to handle file changes
     """
 
+    @classmethod
+    def copy_file(self, file_path, temp_dir):
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        file_name = file_path.replace("/", "__")
+
+        destination_path = os.path.join(temp_dir, f"{timestamp}_{file_name}")
+        copy2(file_path, destination_path)
+        logger.debug(f"Copied {file_path} to {destination_path}")
+        return destination_path
+
+    def get_last_revision(self, file_path):
+        file_name = file_path.replace("/", "__")
+        revisions = sorted([f for f in os.listdir(self.temp_dir) if file_name in f])
+        if revisions and len(revisions) > 1:
+            return os.path.join(self.temp_dir, revisions[-2])
+        else:
+            return None
+
+    def get_current_revision(self, file_path):
+        file_name = file_path.replace("/", "__")
+
+        revisions = sorted([f for f in os.listdir(self.temp_dir) if file_name in f])
+        if revisions:
+            return os.path.join(self.temp_dir, revisions[-1])
+        else:
+            return None
+
+    def compare_revisions(self, file_path: str) -> list[tuple[str, str]]:
+        """
+        Compare the last and current revisions of a file and return the changes.
+        :param file_path: path of the file to compare
+        :return: List of tuples representing the changes (old, new)
+        """
+        file_name = file_path.replace("/", "__")
+        last_revision_path = self.get_last_revision(file_name)
+        current_revision_path = self.get_current_revision(file_name)
+
+        if not last_revision_path or not current_revision_path:
+            logger.warning("Revisions not found for comparison.")
+            return []
+
+        with open(last_revision_path, "r") as last_file, open(
+            current_revision_path, "r"
+        ) as current_file:
+            last_lines = last_file.readlines()
+            current_lines = current_file.readlines()
+
+        differ = Differ()
+        comparison = list(differ.compare(last_lines, current_lines))
+
+        changes = []
+        i = 0
+        while i < len(comparison):
+            if comparison[i].startswith("- "):
+                old_line = comparison[i][2:].strip()
+                new_line = ""
+                if i + 1 < len(comparison) and comparison[i + 1].startswith("+ "):
+                    new_line = comparison[i + 1][2:].strip()
+                    i += 1  # Move to the next line
+                changes.append((old_line, new_line))
+            i += 1
+
+        return changes
+
     def on_modified(self, event):
         if event.is_directory:
             return
         if (file_path := event.src_path) in self.files_to_monitor:
             file_stat = os.stat(file_path)
 
+            if self.store_temp:
+                dest = FileChangeHandler.copy_file(event.src_path, self.temp_dir)
+                logger.debug(f"file copy was made to temp folder: {dest}")
+                rev = self.compare_revisions(file_path)
+                if rev:
+                    for old, new in rev:
+                        logger.info(f"change: {old} -> {new}")
             # Getting the owner and group by UID and GID
             owner_name = pwd.getpwuid(file_stat.st_uid).pw_name
             group_name = grp.getgrgid(file_stat.st_gid).gr_name
@@ -42,9 +118,11 @@ class FileChangeHandler(FileSystemEventHandler):
             # Restart the script
             os.execv(sys.executable, ["python"] + sys.argv)
 
-    def __init__(self, files_to_monitor, config_file):
+    def __init__(self, files_to_monitor, config_file, store_temp, temp_dir):
         self.files_to_monitor = files_to_monitor
         self.config_file = config_file
+        self.store_temp = store_temp
+        self.temp_dir = temp_dir
 
 
 def create_empty_config():
@@ -168,16 +246,19 @@ def prepare_config(args, config_path: str = PATH_DEF_CONF):
     return files_to_monitor
 
 
-def start_monitoring(files_to_monitor, config_path: str, observer: Observer):
+def start_monitoring(files_to_monitor, config_path: str, observer: Observer, args):
     """
     Main function to start monitoring
     :param config_path: path to the YAML configuration file
     :param observer: Observer object for
 
-    monitoring files
+    monitoring filesValidate the configuration(Also checks if the files exist)
     """
-
-    event_handler = FileChangeHandler(files_to_monitor, config_path)
+    store_temp = not args.no_temp
+    temp_dir = tempfile.mkdtemp()
+    event_handler = FileChangeHandler(
+        files_to_monitor, config_path, store_temp=store_temp, temp_dir=temp_dir
+    )
 
     # Determine unique directories to monitor
     directories_to_monitor = set(
@@ -187,6 +268,11 @@ def start_monitoring(files_to_monitor, config_path: str, observer: Observer):
     for directory in directories_to_monitor:
         observer.schedule(event_handler, path=directory, recursive=False)
 
+    # copy to temp to store revivions
+    if store_temp:
+        for file_path in files_to_monitor:
+            dest = FileChangeHandler.copy_file(file_path, temp_dir)
+            logger.debug(f"stored for comparison {dest}")
     try:
         observer.start()
 
@@ -228,11 +314,26 @@ def main():
         action="store_true",
         help="Validate the configuration(Also checks if the files exist)",
     )
+    parser.add_argument(
+        "--no-temp",
+        action="store_true",
+        help="don't store temp files",
+    )
+    parser.add_argument(
+        "-v", "--verbosity", action="count", default=0, help="Increase output verbosity"
+    )
     args: Namespace | None = parser.parse_args()
+
+    if args.verbosity == 1:
+        logger.remove()
+        logger.add(sys.stderr, level="DEBUG")
+    elif args.verbosity >= 3:
+        logger.remove()
+        logger.add(sys.stderr, level="TRACE")
 
     monitor_files = prepare_config(args=args)
     if monitor_files:
-        start_monitoring(monitor_files, args.config, observer)
+        start_monitoring(monitor_files, args.config, observer, args=args)
 
 
 if __name__ == "__main__":

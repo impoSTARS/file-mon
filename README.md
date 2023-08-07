@@ -14,16 +14,23 @@ pip install git+https://github.com/impoSTARS/file-mon.git
 Monitor files specified in a configuration file:
 
 ```bash
-python monitor.py 
-python monitor.py --add /path/to/file
-python monitor.py --config /path/to/pwd/config.yaml
-python monitor.py --validate
+filemon 
+filemon --add /path/to/file
+filemon --config /path/to/pwd/config.yaml
+filemon --validate
 ```
 
 Add a file:
 
 If the --config option is omitted, the tool will look for a configuration file named `config.yaml` in the current working directory.
 
+## Demo
+Here is an example output:
+```bash
+2023-08-07 11:36:44.289 | INFO     | __main__:start_monitoring:285 - Monitoring started...
+2023-08-07 11:36:12.230 | INFO     | __main__:on_modified:108 - change: remote_execution True -> RemoteExecution=False
+2023-08-07 11:36:12.231 | INFO     | __main__:on_modified:113 - File /home/umlal/file-mon/README.md was modified by user umlal of group umlal.
+```
 ### Help
 ```bash
                                                                                             
