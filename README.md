@@ -14,10 +14,10 @@ pip install git+https://github.com/impoSTARS/file-mon.git
 Monitor files specified in a configuration file:
 
 ```bash
-python monitor.py 
-python monitor.py --add /path/to/file
-python monitor.py --config /path/to/pwd/config.yaml
-python monitor.py --validate
+filemon 
+filemon --add /path/to/file
+filemon --config /path/to/pwd/config.yaml
+filemon --validate
 ```
 
 Add a file:
