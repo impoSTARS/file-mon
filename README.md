@@ -70,4 +70,8 @@ cd file-mon
 pip install -r requirements
 pip install -e .
 ```
-
+### unit tests
+we use pytest
+```bash
+pytest /tests
+```
