@@ -1,3 +1,5 @@
+config.yaml
+### General git ignore shit ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
