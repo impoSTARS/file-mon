@@ -11,7 +11,7 @@ import grp
 from shutil import copy2
 from datetime import datetime
 import tempfile
-from difflib import Differ
+from difflib import Differ, unified_diff
 
 try:
     from watchdog.events import FileSystemEventHandler
@@ -22,6 +22,7 @@ except ImportError:
 DEFAULT_CONF_NAME = "config.yaml"
 PATH_DEF_CONF = os.path.abspath(os.path.relpath(DEFAULT_CONF_NAME, start=os.getcwd()))
 DEFAULT_TEMP_STORE = True
+TIME_TO_REFRESH = 5  # seconds
 
 
 class FileChangeHandler(FileSystemEventHandler):
@@ -56,15 +57,9 @@ class FileChangeHandler(FileSystemEventHandler):
         else:
             return None
 
-    def compare_revisions(self, file_path: str) -> list[tuple[str, str]]:
-        """
-        Compare the last and current revisions of a file and return the changes.
-        :param file_path: path of the file to compare
-        :return: List of tuples representing the changes (old, new)
-        """
-        file_name = file_path.replace("/", "__")
-        last_revision_path = self.get_last_revision(file_name)
-        current_revision_path = self.get_current_revision(file_name)
+    def compare_revisions(self, file_path: str) -> list[tuple[list[str], list[str]]]:
+        last_revision_path = self.get_last_revision(file_path)
+        current_revision_path = self.get_current_revision(file_path)
 
         if not last_revision_path or not current_revision_path:
             logger.warning("Revisions not found for comparison.")
@@ -76,20 +71,21 @@ class FileChangeHandler(FileSystemEventHandler):
             last_lines = last_file.readlines()
             current_lines = current_file.readlines()
 
-        differ = Differ()
-        comparison = list(differ.compare(last_lines, current_lines))
-
         changes = []
-        i = 0
-        while i < len(comparison):
-            if comparison[i].startswith("- "):
-                old_line = comparison[i][2:].strip()
-                new_line = ""
-                if i + 1 < len(comparison) and comparison[i + 1].startswith("+ "):
-                    new_line = comparison[i + 1][2:].strip()
-                    i += 1  # Move to the next line
-                changes.append((old_line, new_line))
-            i += 1
+        old_lines, new_lines = [], []
+        for diff_line in unified_diff(
+            last_lines, current_lines, n=0
+        ):  # n=0 to disable context lines
+            if diff_line.startswith("-") and not diff_line.startswith("---"):
+                old_lines.append(diff_line[1:].strip())
+            elif diff_line.startswith("+") and not diff_line.startswith("+++"):
+                new_lines.append(diff_line[1:].strip())
+            elif old_lines or new_lines:
+                changes.append((old_lines, new_lines))
+                old_lines, new_lines = [], []
+
+        if old_lines or new_lines:  # Append any remaining changes
+            changes.append((old_lines, new_lines))
 
         return changes
 

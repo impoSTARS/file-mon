@@ -2,6 +2,7 @@
 
 A CLI tool to monitor changes to files. It can watch multiple files and logs any changes to those files. You can specify the files to monitor through a YAML configuration file.
 
+Created as a preparation for BsidesLV Pros vs Joes 2023
 ## Installation
 
 ```bash
@@ -18,6 +19,11 @@ filemon
 filemon --add /path/to/file
 filemon --config /path/to/pwd/config.yaml
 filemon --validate
+filemon --remove /path/to/file
+sss
+as
+dossa
+some more
 ```
 
 Add a file:
@@ -33,10 +39,8 @@ Here is an example output:
 ```
 ### Help
 ```bash
-                                                                                            
-┌──(venv)─(umlal㉿umlal)-[~/file-mon]
-└─$ filemon --add ~/file-mon/README.md -h
-usage: filemon [-h] [--config CONFIG] [--add ADD] [--remove REMOVE] [--validate]
+└─$ filemon -h
+usage: filemon [-h] [--config CONFIG] [--add ADD] [--remove REMOVE] [--validate] [--no-temp] [-v]
 
 File Change Monitor Tool
 
@@ -46,7 +50,9 @@ options:
   --add ADD             Add a file to the configuration
   --remove REMOVE, --delete REMOVE
                         Delete a file from the configuration,
-  --validate VALIDATE   Validate the configuration(Also checks if the files exist)
+  --validate            Validate the configuration(Also checks if the files exist)
+  --no-temp             don't store temp files
+  -v, --verbosity       Increase output verbosity
 ```
 ### Configuration File
 
