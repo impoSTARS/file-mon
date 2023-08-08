@@ -35,9 +35,9 @@ class FileChangeHandler(FileSystemEventHandler):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         file_name = file_path.replace("/", "__")
 
-        destination_path = os.path.join(temp_dir, f"{timestamp}_{file_name}")
+        destination_path = os.path.join(temp_dir, timestamp + "_" + file_name)
         copy2(file_path, destination_path)
-        logger.debug(f"Copied {file_path} to {destination_path}")
+        logger.debug("Copied " + file_path + " to " + destination_path)
         return destination_path
 
     def get_last_revision(self, file_path):
@@ -97,17 +97,22 @@ class FileChangeHandler(FileSystemEventHandler):
 
             if self.store_temp:
                 dest = FileChangeHandler.copy_file(event.src_path, self.temp_dir)
-                logger.debug(f"file copy was made to temp folder: {dest}")
+                logger.debug("file copy was made to temp folder:" + dest)
                 rev = self.compare_revisions(file_path)
                 if rev:
                     for old, new in rev:
-                        logger.info(f"change: {old} -> {new}")
+                        logger.info("change: " + old + " -> " + new)
             # Getting the owner and group by UID and GID
             owner_name = pwd.getpwuid(file_stat.st_uid).pw_name
             group_name = grp.getgrgid(file_stat.st_gid).gr_name
 
             logger.info(
-                f"File {file_path} was modified by user {owner_name} of group {group_name}."
+                "File "
+                + file_path
+                + " was modified by user "
+                + owner_name
+                + " of group "
+                + group_name
             )
         elif event.src_path == self.config_file:
             logger.info("Configuration file changed. Restarting...")
@@ -128,7 +133,7 @@ def create_empty_config():
     config_path = PATH_DEF_CONF
     with open(config_path, "w") as file:
         yaml.dump({"files": [config_path]}, file)
-    logger.warning(f"Created an empty config file at {config_path}")
+    logger.warning("Created an empty config file at " + config_path)
     return config_path
 
 
@@ -142,7 +147,7 @@ def add_file_to_config(file_path: str, config_path: str = PATH_DEF_CONF):
     file_path = os.path.abspath(file_path)
 
     if not os.path.exists(file_path):
-        logger.error(f"File {file_path} does not exist.")
+        logger.error("File " + file_path + " does not exist.")
         return
 
     with open(config_path, "r") as file:
@@ -157,7 +162,7 @@ def add_file_to_config(file_path: str, config_path: str = PATH_DEF_CONF):
     with open(config_path, "w") as file:
         yaml.safe_dump(config, file)
 
-    logger.info(f"Added {file_path} to {config_path}.")
+    logger.info("Added " + file_path + " to " + config_path)
 
 
 def validate_yaml(config_path: str = PATH_DEF_CONF):
@@ -176,12 +181,12 @@ def validate_yaml(config_path: str = PATH_DEF_CONF):
 
         for file_path in config["files"]:
             if not os.path.exists(file_path):
-                logger.warning(f"File {file_path} does not exist.")
+                logger.warning("File " + file_path + " does not exist.")
 
         return True
 
     except yaml.YAMLError as exc:
-        logger.error(f"Error in configuration file: {exc}")
+        logger.error("Error in configuration file:" + exc)
         return False
 
 
@@ -203,9 +208,9 @@ def remove_file_from_config(file_path: str, config_path: str = PATH_DEF_CONF):
         with open(config_path, "w") as file:
             yaml.safe_dump(config, file)
 
-        logger.info(f"Deleted {file_path} from {config_path}.")
+        logger.info("Deleted " + file_path + " from " + config_path)
     else:
-        logger.warning(f"{file_path} not found in {config_path}.")
+        logger.warning(file_path + " not found in " + config_path)
 
 
 def prepare_config(args, config_path: str = PATH_DEF_CONF):
@@ -237,7 +242,7 @@ def prepare_config(args, config_path: str = PATH_DEF_CONF):
     files_to_monitor = config["files"]
     for file_path in files_to_monitor[:]:
         if not os.path.exists(file_path):
-            logger.warning(f"File {file_path} was not found.")
+            logger.warning("File " + file_path + " was not found.")
             files_to_monitor.remove(file_path)
     return files_to_monitor
 
@@ -268,13 +273,13 @@ def start_monitoring(files_to_monitor, config_path: str, observer: Observer, arg
     if store_temp:
         for file_path in files_to_monitor:
             dest = FileChangeHandler.copy_file(file_path, temp_dir)
-            logger.debug(f"stored for comparison {dest}")
+            logger.debug("stored for comparison" + dest)
     try:
         observer.start()
 
     except FileNotFoundError as e:
         logger.critical(
-            f"Config File to monitor was not found, check config: {str(config_path)}"
+            "Config File to monitor was not found, check config: " + str(config_path)
         )
         # logger.info(event_handler.pathtofile)
         logger.debug(traceback.print_exc())
@@ -295,7 +300,7 @@ def main():
         "--config",
         required=False,
         default=PATH_DEF_CONF,
-        help=f"Path to the YAML configuration file default:{PATH_DEF_CONF}",
+        help="Path to the YAML configuration file default:" + PATH_DEF_CONF,
     )
     parser.add_argument("--add", help="Add a file to the configuration", default=None)
     parser.add_argument(
