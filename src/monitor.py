@@ -316,6 +316,7 @@ def main():
         action="store_true",
         help="Validate the configuration(Also checks if the files exist)",
     )
+<<<<<<< HEAD
     parser.add_argument(
         "--no-temp",
         action="store_true",
@@ -325,6 +326,9 @@ def main():
         "-v", "--verbosity", action="count", default=0, help="Increase output verbosity"
     )
     args: Namespace | None = parser.parse_args()
+=======
+    arg = parser.parse_args()
+>>>>>>> 26da32d (fix fast)
 
     if args.verbosity == 1:
         logger.remove()
