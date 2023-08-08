@@ -92,7 +92,8 @@ class FileChangeHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.is_directory:
             return
-        if (file_path := event.src_path) in self.files_to_monitor:
+        file_path = event.src_path
+        if (file_path) in self.files_to_monitor:
             file_stat = os.stat(file_path)
 
             if self.store_temp:
